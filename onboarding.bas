@@ -34,34 +34,36 @@ Dim WorkingName As String
 Dim LastWorkRow As Long
 Dim HeaderRows As Collection
 Dim ReqE, TotalE As Long
+Dim HeaderNames As Variant
 
-
-
-'Dim LegalHeaderRow, StateHeaderRow, CertHeaderRow As Long
-'Dim VerifCertHeaderRow, AddHeaderRow, EduCertHeaderRow As Long
-'Dim PremedHeaderRow, MedHeaderRow, PostGradHeaderRow As Long
-'Dim ExamHeaderRow, WorkHeaderRow, HospHeaderRow As Long
-'Dim ReportHeaderRow, MilHeaderRow, RefHeaderRow, PointHeaderRow As Long
-
+counter = Worksheets.Count
+Application.DisplayAlerts = False
+For shnum = 1 To counter
+    If Sheets(shnum).Name = "Summary" Then
+        Sheets(shnum).Delete
+    End If
+Next shnum
+Application.DisplayAlerts = True
 ' check for summary worksheet, if exists, deletes it
 
 ' ___creating list of worksheet names___
 counter = Worksheets.Count
 Sheets.Add After:=Sheets(counter)
 Sheets(counter + 1).Name = "Summary"
-Sheets("Summary").Range("A1").Value = "Physicians"
-Sheets("Summary").Range("B1").Value = "% Legal Rqstd"
-Sheets("Summary").Range("C1").Value = "% Legal Rcvd"
-Sheets("Summary").Range("D1").Value = "% Legal Uploaded"
-Sheets("Summary").Range("E1").Value = "% State Lic Rqstd"
-Sheets("Summary").Range("F1").Value = "% State Lic Rcvd"
-Sheets("Summary").Range("G1").Value = "% State Lic Uploaded"
-Sheets("Summary").Range("H1").Value = "% Cert Rqstd"
-Sheets("Summary").Range("I1").Value = "% Cert Rcvd"
-Sheets("Summary").Range("J1").Value = "% Cert Lic Uploaded"
-Sheets("Summary").Range("K1").Value = "% Ver of Cert Rqstd"
-Sheets("Summary").Range("L1").Value = "% Ver of Cert Rcvd"
-Sheets("Summary").Range("M1").Value = "% Ver of Cert Uploaded"
+
+'   Create and set table headers
+HeaderNames = Array( _
+"Physicians", _
+"% Legal Rqstd", "% Legal Rcvd", "%Legal Upload", _
+"% State Lic Rqstd", "% State Lic Rcvd", "% State Lic Upload", _
+"% Cert Rqstd", "% Cert Rcvd", "% Cert Upload", _
+"% Verif of Cert Rqst", "% Verif of Cert Rcvd", "% Verif of Cert Upload")
+Range("A1:M1").Value = HeaderNames
+
+
+
+
+'   Add physicians name to summary page
 For i = 1 To counter
     If Sheets(i).Name <> "Template" Then
         Sheets("Summary").Range("A" & CStr(i + 1)).Value = Sheets(i).Name
@@ -70,6 +72,13 @@ For i = 1 To counter
     End If
 Next i
 Sheets("Summary").Rows(template_row).Delete
+
+'   Resize columns
+Columns("A").AutoFit
+Rows(1).RowHeight = 30
+Columns("B:Z").ColumnWidth = 9
+Range("A1:Z1").WrapText = True
+
 '   Iterate over worksheets (change 2 back to counter when done testing)
 For i = 2 To counter
     
@@ -140,10 +149,6 @@ For i = 2 To counter
 
     
 Next i
-Columns("A").AutoFit
-Rows(1).RowHeight = 30
-Columns("B:Z").ColumnWidth = 9
-Range("A1:Z1").WrapText = True
 
 
 End Sub
