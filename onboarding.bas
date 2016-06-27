@@ -1,8 +1,6 @@
 Attribute VB_Name = "Module1"
 Public Function TypeCounter(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, ReqRcvUp)
-Dim Total As Long
-Dim Completed As Long
-Dim Percent As Long
+Dim Total, Completed, Percent As Long
 
 Completed = 0
 Total = 0
@@ -22,52 +20,96 @@ Else
     TypeCounter = Round((Completed / Total) * 100)
 End If
 
-
 End Function
 
 Public Function MissingItems(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, MissingRow, i)
-For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
-    If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
-    And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
-        Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
-        MissingRow = MissingRow + 1
-    End If
-Next mrow
-
+If TopHeaderRow = "StateHeaderRow" Then
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            If Working.Range("A" & mrow) Like "*Wallet/Wall" Then
+                premrow = CStr(CInt(mrow) - 1)
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
+            End If
+            If Working.Range("A" & mrow) Like "*Verification" Then
+                premrow = CStr(CInt(mrow) - 2)
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
+            End If
+            MissingRow = MissingRow + 1
+        End If
+    Next mrow
+ElseIf TopHeaderRow = "WorkHeaderRow" Then
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            If Working.Range("A" & mrow).Value Like "*Work*" Then
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
+            Else
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = "Work: " & Working.Range("A" & mrow).Value
+            End If
+            MissingRow = MissingRow + 1
+            
+        End If
+    Next mrow
+ElseIf TopHeaderRow = "HospHeaderRow" Then
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            If Working.Range("A" & mrow).Value Like "Hospital Verif*" Then
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
+            Else
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = "Hospital: " & Working.Range("A" & mrow).Value
+            End If
+            MissingRow = MissingRow + 1
+            
+        End If
+    Next mrow
+ElseIf TopHeaderRow = "InsHeaderRow" Then
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            If Working.Range("A" & mrow).Value Like "Insurance Verif*" Then
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
+            Else
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = "Insurance: " & Working.Range("A" & mrow).Value
+            End If
+            MissingRow = MissingRow + 1
+            
+        End If
+    Next mrow
+ElseIf TopHeaderRow = "RefHeaderRow" Then
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            If Working.Range("A" & mrow).Value Like "Reference*" Then
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
+            Else
+                Sheets("Missing Items").Cells(MissingRow, i - 1).Value = "Reference: " & Working.Range("A" & mrow).Value
+            End If
+            MissingRow = MissingRow + 1
+            
+        End If
+    Next mrow
+Else
+    For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+        If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+        And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+            Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
+            MissingRow = MissingRow + 1
+        End If
+    Next mrow
+End If
 MissingItems = MissingRow
-End Function
-
-Public Function MissingItemsST(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, MissingRow, i)
-For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
-    If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
-    And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
-        If Working.Range("A" & mrow) Like "*Wallet/Wall" Then
-            premrow = CStr(CInt(mrow) - 1)
-            Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
-        End If
-        If Working.Range("A" & mrow) Like "*Verification" Then
-            premrow = CStr(CInt(mrow) - 2)
-            Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
-        End If
-        MissingRow = MissingRow + 1
-    End If
-Next mrow
-
-MissingItemsST = MissingRow
 End Function
 
 
 Sub Information()
 Attribute Information.VB_ProcData.VB_Invoke_Func = "R\n14"
 '   Set variables
-Dim counter As Long
-Dim template_row As Long
+Dim counter, template_row, LastWorkRow As Long
 Dim Working As Worksheet
-Dim WorkingName As String
-Dim LastWorkRow As Long
 Dim HeaderRows As Collection
 Dim HeaderNames As Variant
-
 
 '   check for summary worksheet, if exists, deletes it
 counter = Worksheets.Count
@@ -129,10 +171,10 @@ For i = 1 To counter
         template_row = i + 1
     End If
 Next i
-Sheets("Summary").Rows(template_row).Delete
 Sheets("Missing Items").Columns(template_row - 1).EntireColumn.Delete Shift:=xlToLeft
 '   Resize columns
 With Sheets("Summary")
+    .Rows(template_row).Delete
     .Columns("A").AutoFit
     .Rows(1).RowHeight = 45
     .Columns("B:AL").ColumnWidth = 12
@@ -146,12 +188,11 @@ End With
 '   Iterate over worksheets (should be '2 to counter')
 For i = 2 To counter
     
-'   Clear dict to be blank for new worksheet
+'   Clear iteratives to be default for new worksheet
     Set HeaderRows = New Collection
     MissingRow = 2
 '   Get worksheet from summary page, set to "Working"
-    WorkingName = Sheets("Summary").Range("A" & CStr(i)).Value
-    Set Working = Sheets(WorkingName)
+    Set Working = Sheets(Sheets("Summary").Range("A" & CStr(i)).Value)
 '   Determine last row of data
     LastWorkRow = Working.UsedRange.SpecialCells(xlCellTypeLastCell).Row
 '   Determine row numbers of all header columns
@@ -197,7 +238,7 @@ For i = 2 To counter
 '   Fill out missing row spreadsheet
 
     MissingRow = MissingItems(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", MissingRow, i)
-    MissingRow = MissingItemsST(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", MissingRow, i)
     MissingRow = MissingItems(HeaderRows, Working, "CertHeaderRow", "VerifCertHeaderRow", MissingRow, i)
     MissingRow = MissingItems(HeaderRows, Working, "VerifCertHeaderRow", "AddHeaderRow", MissingRow, i)
     MissingRow = MissingItems(HeaderRows, Working, "AddHeaderRow", "EduCertHeaderRow", MissingRow, i)
@@ -207,6 +248,13 @@ For i = 2 To counter
     MissingRow = MissingItems(HeaderRows, Working, "MedHeaderRow", "PostGradHeaderRow", MissingRow, i)
     MissingRow = MissingItems(HeaderRows, Working, "PostGradHeaderRow", "ExamHeaderRow", MissingRow, i)
     MissingRow = MissingItems(HeaderRows, Working, "ExamHeaderRow", "WorkHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "WorkHeaderRow", "HospHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "HospHeaderRow", "InsHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "InsHeaderRow", "ReportHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", MissingRow, i)
     
     With Sheets("Summary")
 '   Legal: between "Legal Documents" and "State Licenses"
