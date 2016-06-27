@@ -1,24 +1,25 @@
 Attribute VB_Name = "Module1"
 Public Function TypeCounter(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, ReqRcvUp)
 Dim Total As Long
-Dim Req As Long
+Dim Completed As Long
 Dim Percent As Long
 
-Req = 0
+Completed = 0
 Total = 0
 'Total = HeaderRows(BottomHeaderRow) - (HeaderRows(TopHeaderRow) + 1)
 For leg = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
     If Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex <> 1 Then
         Total = Total + 1
     End If
-    If (IsEmpty(Working.Range(ReqRcvUp & CStr(leg)).Value) = False) And (Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex <> 1) Then
-        Req = Req + 1
+    If ((IsEmpty(Working.Range(ReqRcvUp & CStr(leg)).Value) = False) And (Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex <> 1)) _
+    Or Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex = 15 Then
+        Completed = Completed + 1
     End If
 Next leg
 If Total = 0 Then
-    TypeCounter = 0
+    TypeCounter = 100
 Else
-    TypeCounter = Round((Req / Total) * 100)
+    TypeCounter = Round((Completed / Total) * 100)
 End If
 
 
@@ -26,13 +27,33 @@ End Function
 
 Public Function MissingItems(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, MissingRow, i)
 For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
-    If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 Then
+    If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+    And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
         Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & mrow).Value
         MissingRow = MissingRow + 1
     End If
 Next mrow
 
 MissingItems = MissingRow
+End Function
+
+Public Function MissingItemsST(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, MissingRow, i)
+For mrow = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+    If IsEmpty(Working.Range("C" & mrow).Value) And Working.Range("C" & mrow).Interior.ColorIndex <> 1 _
+    And Working.Range("C" & mrow).Interior.ColorIndex <> 15 Then
+        If Working.Range("A" & mrow) Like "*Wallet/Wall" Then
+            premrow = CStr(CInt(mrow) - 1)
+            Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
+        End If
+        If Working.Range("A" & mrow) Like "*Verification" Then
+            premrow = CStr(CInt(mrow) - 2)
+            Sheets("Missing Items").Cells(MissingRow, i - 1).Value = Working.Range("A" & premrow).Value & Working.Range("A" & mrow).Value
+        End If
+        MissingRow = MissingRow + 1
+    End If
+Next mrow
+
+MissingItemsST = MissingRow
 End Function
 
 
@@ -45,7 +66,6 @@ Dim Working As Worksheet
 Dim WorkingName As String
 Dim LastWorkRow As Long
 Dim HeaderRows As Collection
-Dim ReqE, TotalE As Long
 Dim HeaderNames As Variant
 
 
@@ -85,15 +105,26 @@ HeaderNames = Array( _
 "% Work Requested", "% Work Recieved", "% Work Uploaded", _
 "% Affiliation Requested", "% Affiliation Recieved", "% Affiliation Uploaded", _
 "% Insurance Requested", "% Insurance Recieved", "% Insurance Uploaded", _
-"% Reports Requested", "% Reports Requested", "% Reports Requested")
-Sheets("Summary").Range("A1:AB1").Value = HeaderNames
+"% Reports Requested", "% Reports Recieved", "% Reports Uploaded", _
+"% Military Requested", "% Military Recieved", "% Military Uploaded", _
+"% Reference Requested", "% Reference Recieved", "% Reference Uploaded", _
+"% Total Requested", "% Total Recieved", "%Total Uploaded", _
+"% Pending")
+Sheets("Summary").Range("A1:AL1").Value = HeaderNames
 
 
 '   Add physicians name to summary page
 For i = 1 To counter
     If Sheets(i).Name <> "Template" Then
         Sheets("Summary").Range("A" & CStr(i + 1)).Value = Sheets(i).Name
+        Sheets("Summary").Range("A" & CStr(i + 1)).Interior.ColorIndex = Sheets(i).Tab.ColorIndex
         Sheets("Missing Items").Cells(1, i).Value = Sheets(i).Name
+        Sheets("Missing Items").Cells(1, i).Interior.ColorIndex = Sheets(i).Tab.ColorIndex
+        If Sheets(i).Tab.ColorIndex = 1 Then
+            Sheets("Missing Items").Cells(1, i).Font.Color = RGB(255, 255, 255)
+            Sheets("Summary").Range("A" & CStr(i + 1)).Font.Color = RGB(255, 255, 255)
+        End If
+        
     Else
         template_row = i + 1
     End If
@@ -104,11 +135,11 @@ Sheets("Missing Items").Columns(template_row - 1).EntireColumn.Delete Shift:=xlT
 With Sheets("Summary")
     .Columns("A").AutoFit
     .Rows(1).RowHeight = 45
-    .Columns("B:AB").ColumnWidth = 9.5
+    .Columns("B:AL").ColumnWidth = 12
 End With
-With Sheets("Summary").Range("A1:AB1")
+With Sheets("Summary").Range("A1:AL1")
     .WrapText = True
-    .VerticalAlignment = xlCenter
+    .VerticalAlignment = xlTop
     .HorizontalAlignment = xlCenter
 End With
 
@@ -155,14 +186,28 @@ For i = 2 To counter
             HeaderRows.Add (j + 1), "ReportHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value Like "*Military*" Then
             HeaderRows.Add j, "MilHeaderRow"
-        ElseIf Working.Range("A" & CStr(j)).Value = "References" Then
+        ElseIf Working.Range("A" & CStr(j)).Value Like "References*" And _
+        Working.Range("A" & CStr(j)).Font.Bold = True Then
             HeaderRows.Add j, "RefHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value Like "*Additional Items*" Then
             HeaderRows.Add j, "PointAddPHeaderRow"
         End If
     Next j
     HeaderRows.Add (HeaderRows("PointAddPHeaderRow") + 4), "LastEmptyRow"
+'   Fill out missing row spreadsheet
+
     MissingRow = MissingItems(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", MissingRow, i)
+    MissingRow = MissingItemsST(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "CertHeaderRow", "VerifCertHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "VerifCertHeaderRow", "AddHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "AddHeaderRow", "EduCertHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "EduCertHeaderRow", "PremedHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "PremedHeaderRow", "MedHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "MedHeaderRow", "PostGradHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "PostGradHeaderRow", "ExamHeaderRow", MissingRow, i)
+    MissingRow = MissingItems(HeaderRows, Working, "ExamHeaderRow", "WorkHeaderRow", MissingRow, i)
+    
     With Sheets("Summary")
 '   Legal: between "Legal Documents" and "State Licenses"
         .Range("B" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", "B")
@@ -219,6 +264,52 @@ For i = 2 To counter
         .Range("Z" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", "B")
         .Range("AA" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", "C")
         .Range("AB" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", "D")
+'   Military
+        .Range("AC" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", "B")
+        .Range("AD" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", "C")
+        .Range("AE" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", "D")
+'   References
+        .Range("AF" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", "B")
+        .Range("AG" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", "C")
+        .Range("AH" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", "D")
+'   Totals
+         .Range("AI" & CStr(i)).Formula = "=ROUND(AVERAGE(B" & CStr(i) _
+         & ",E" & CStr(i) _
+         & ",H" & CStr(i) _
+         & ",K" & CStr(i) _
+         & ",N" & CStr(i) _
+         & ",Q" & CStr(i) _
+         & ",T" & CStr(i) _
+         & ",W" & CStr(i) _
+         & ",Z" & CStr(i) _
+         & ",AC" & CStr(i) _
+         & ",AF" & CStr(i) _
+         & "),0)"
+         .Range("AJ" & CStr(i)).Formula = "=ROUND(AVERAGE(C" & CStr(i) _
+         & ",F" & CStr(i) _
+         & ",I" & CStr(i) _
+         & ",L" & CStr(i) _
+         & ",O" & CStr(i) _
+         & ",R" & CStr(i) _
+         & ",U" & CStr(i) _
+         & ",X" & CStr(i) _
+         & ",AA" & CStr(i) _
+         & ",AD" & CStr(i) _
+         & ",AG" & CStr(i) _
+         & "),0)"
+         .Range("AK" & CStr(i)).Formula = "=ROUND(AVERAGE(D" & CStr(i) _
+         & ",G" & CStr(i) _
+         & ",J" & CStr(i) _
+         & ",M" & CStr(i) _
+         & ",P" & CStr(i) _
+         & ",S" & CStr(i) _
+         & ",V" & CStr(i) _
+         & ",Y" & CStr(i) _
+         & ",AB" & CStr(i) _
+         & ",AE" & CStr(i) _
+         & ",AH" & CStr(i) _
+         & "),0)"
+         .Range("AL" & CStr(i)).Formula = "=(AI" & CStr(i) & "-AJ" & CStr(i) & ")"
     End With
 
 
@@ -226,6 +317,11 @@ Sheets("Missing Items").Columns(1).Resize(, counter).AutoFit
 Sheets("Missing Items").Rows(1).Resize(MissingRow, 1).AutoFit
     
 Next i
-
+Sheets("Summary").Activate
+With ActiveWindow
+    .SplitColumn = 1
+    .SplitRow = 0
+End With
+ActiveWindow.FreezePanes = True
 
 End Sub
