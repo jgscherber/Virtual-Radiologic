@@ -100,7 +100,10 @@ for row in range(2, t_length):
                                            'INP', 'INP-QA', 'INP-QA',
                                            'ORIG-SIG','ELEC-SIG', 'REAP-INP',
                                            'REAP-QA'] and
-            'eaving' not in test['M{0}'.format(row)].value):
+            'eaving' not in test['M{0}'.format(row)].value and
+        'TERMING' not in test['M{0}'.format(row)].value and
+            'terming' not in test['M{0}'.format(row)].value and
+            'EAVING' not in test['M{0}'.format(row)].value):
             date_reform = leave_date[rad].strftime('%m/%d/%Y')
             positives.append([date_reform,
                               test['B{0}'.format(row)].value,
@@ -140,6 +143,7 @@ for k in range(len(positives)):
           ' Please contact Roberta with questions.\n'.format(
               positives[k][1],positives[k][2],positives[k][0]))
     time.sleep(3)
+driver.quit()
 # ID = A
 # Name = B
 # Facility = E
