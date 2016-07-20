@@ -1,23 +1,23 @@
 Attribute VB_Name = "Module1"
 Public Function TypeCounter(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, ReqRcvUp)
-Dim Total, Completed, Percent As Long
+Dim total, Completed, Percent As Long
 
 Completed = 0
-Total = 0
-'Total = HeaderRows(BottomHeaderRow) - (HeaderRows(TopHeaderRow) + 1)
+total = 0
+
 For leg = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
     If Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex <> 1 Then
-        Total = Total + 1
+        total = total + 1
     End If
     If ((IsEmpty(Working.Range(ReqRcvUp & CStr(leg)).Value) = False) And (Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex <> 1)) _
     Or Working.Range(ReqRcvUp & CStr(leg)).Interior.ColorIndex = 15 Then
         Completed = Completed + 1
     End If
 Next leg
-If Total = 0 Then
+If total = 0 Then
     TypeCounter = 100
 Else
-    TypeCounter = Round((Completed / Total) * 100)
+    TypeCounter = Round((Completed / total) * 100)
 End If
 
 End Function
@@ -102,6 +102,101 @@ End If
 MissingItems = MissingRow
 End Function
 
+Public Function Check_delete(sheet)
+counter = Worksheets.Count
+Application.DisplayAlerts = False
+For shnum = counter To 1 Step -1
+    If Sheets(shnum).Name = sheet Then
+        Sheets(shnum).Delete
+    End If
+Next shnum
+
+Application.DisplayAlerts = True
+
+
+End Function
+
+Public Function DateDiffCalc(HeaderRows, Working, TopHeaderRow, BottomHeaderRow, i)
+' Working = working sheet
+' HeaderRows = dict of row #s
+' Top/Bottom = dict keys
+' column of final info
+Dim TotalDiff As Long
+Dim numdiff As Integer
+Dim DateSplit() As String
+Dim FirstDate As String
+
+Dim ReqDate_A() As String
+Dim RcvDate_A() As String
+error_row = 24
+
+TotalDiff = 0
+numdiff = 0
+For dadiff = HeaderRows(TopHeaderRow) + 1 To HeaderRows(BottomHeaderRow) - 1
+    On Error GoTo ErrorHandler
+    ReqDate = CStr(Working.Range("B" + CStr(dadiff)).Value)
+    rcvdate = CStr(Working.Range("C" + CStr(dadiff)).Value)
+    
+    If ReqDate Like "*/*/*" And rcvdate Like "*/*/*" Then
+        ReqDate = Replace(ReqDate, Chr(10), " ")
+        rcvdate = Replace(rcvdate, Chr(10), " ")
+        ReqDate = Replace(ReqDate, ",", " ")
+        rcvdate = Replace(rcvdate, ",", " ")
+        
+        
+        RcvDate_A = Split(rcvdate, " ")
+        ReqDate = Split(ReqDate, " ")(0)
+        rcvdate = RcvDate_A(UBound(RcvDate_A))
+        
+        If Right(ReqDate, 1) = "/" Then
+            ReqDate = Left(ReqDate, Len(ReqDate) - 1)
+        End If
+        If Right(rcvdate, 1) = "/" Then
+            rcvdate = Left(rcvdate, Len(rcvdate) - 1)
+        End If
+        If Not (ReqDate Like "*/*/*") Then
+            ReqDate = ReqDate + "/" + CStr(Year(Date))
+        End If
+        If Not (rcvdate Like "*/*/*") Then
+            rcvdate = rcvdate + "/" + CStr(Year(Date))
+        End If
+        ReqDate = CDate(ReqDate)
+        rcvdate = CDate(rcvdate)
+        If Year(ReqDate) <= Year(rcvdate) And Year(rcvdate) <= Year(Now) + 1 Then
+            TotalDiff = TotalDiff + DateDiff("d", ReqDate, rcvdate)
+            numdiff = numdiff + 1
+        End If
+    ElseIf rcvdate <> "" Then
+        TotalDiff = TotalDiff + 1
+        numdiff = numdiff + 1
+    End If
+    
+Next dadiff
+
+    
+
+ If numdiff = 0 Then
+    DateDiffCalc = "N/A"
+ Else
+     DateDiffCalc = Round((TotalDiff / numdiff))
+ End If
+
+Exit Function
+ErrorHandler:
+
+Do While True
+    If Sheets("Date Difference").Range("B" & CStr(error_row)).Value <> "" Then
+      error_row = error_row + 1
+    Else
+       Sheets("Date Difference").Range("B" & CStr(error_row)).Value = Working.Name & ": Malformed Date -- Line:  " & _
+       CStr(dadiff) & "  (Request Date:  " & CStr(ReqDate) & "  Received Date:  " & CStr(rcvdate) & ")"
+       Exit Do
+    End If
+'     change this to a list at the end instead of pop-ups (maybe add the dates outside sum range above too) starts at B24
+'     MsgBox Working.Name & " - Malformed Date" & vbNewLine & "Line:  " & CStr(dadiff) & vbNewLine & "Request Date:  " & CStr(ReqDate) & vbNewLine & "Received Date:  " & CStr(rcvdate)
+     Err.Clear
+Loop
+End Function
 
 Sub Information()
 Attribute Information.VB_ProcData.VB_Invoke_Func = "R\n14"
@@ -109,34 +204,30 @@ Attribute Information.VB_ProcData.VB_Invoke_Func = "R\n14"
 Dim counter, template_row, LastWorkRow As Long
 Dim Working As Worksheet
 Dim HeaderRows As Collection
+Dim RowLabels As Variant
 Dim HeaderNames As Variant
 
-'   check for summary worksheet, if exists, deletes it
-counter = Worksheets.Count
-Application.DisplayAlerts = False
-For shnum = 1 To counter - 1
-    If Sheets(shnum).Name = "Summary" Then
-        Sheets(shnum).Delete
-    End If
-Next shnum
-Application.DisplayAlerts = True
-counter = Worksheets.Count
-Application.DisplayAlerts = False
-For shnum = 1 To counter
-    If Sheets(shnum).Name = "Missing Items" Then
-        Sheets(shnum).Delete
-    End If
-Next shnum
-Application.DisplayAlerts = True
+' speed tweaks
+Application.Calculation = xlCalculationManual
+Application.ScreenUpdating = False
+Application.DisplayStatusBar = False
 
-'   creating list of worksheet names
+'   check for summary worksheet, if exists, deletes it
+Check_delete "Missing Items"
+Check_delete "Summary"
+Check_delete "Date Difference"
+
+
+'   creating worksheet names
 counter = Worksheets.Count
 Sheets.Add After:=Sheets(counter)
 Sheets(counter + 1).Name = "Summary"
 Sheets.Add After:=Sheets("Summary")
 Sheets(counter + 2).Name = "Missing Items"
+Sheets.Add After:=Sheets("Missing Items")
+Sheets(counter + 3).Name = "Date Difference"
 
-'   Create and set table headers
+'   Create and set Summary headers
 HeaderNames = Array( _
 "Physicians", _
 "% Legal Rqstd", "% Legal Rcvd", "% Legal Upload", _
@@ -154,6 +245,34 @@ HeaderNames = Array( _
 "% Pending")
 Sheets("Summary").Range("A1:AL1").Value = HeaderNames
 
+' Create Date Difference Row Labels
+RowLabels = Array( _
+"Legal Documents", "State Licenses", "Certificates", _
+"Verification of Certificates", "Additional Info / Docs", _
+"Education Certificates", "Premed", "Medical School", _
+"Post Graduate Training", "Exam Records", "Work History", _
+"Hospital Affiliations", "Insurance", "Reports", "Military", _
+"References", "Additional Items")
+RowLabels = WorksheetFunction.Transpose(RowLabels)
+Sheets("Date Difference").Range("A1").Interior.ColorIndex = 1
+Sheets("Date Difference").Range("A24").Value = "Errors"
+Sheets("Date Difference").Range("A24").Interior.ColorIndex = 3
+With Sheets("Date Difference").Range("A2:A18")
+    .Value = RowLabels
+    .Interior.ColorIndex = 23
+    .Font.Color = RGB(255, 255, 255)
+End With
+With Sheets("Date Difference").Range("A12:A14")
+    .Interior.ColorIndex = 15
+    .Font.Color = RGB(0, 0, 0)
+End With
+With Sheets("Date Difference").Range("A17")
+    .Interior.ColorIndex = 15
+    .Font.Color = RGB(0, 0, 0)
+End With
+
+Sheets("Date Difference").Columns("A").AutoFit
+Sheets("Date Difference").Columns("B:AZ").ColumnWidth = 15
 
 '   Add physicians name to summary page
 For i = 1 To counter
@@ -162,9 +281,12 @@ For i = 1 To counter
         Sheets("Summary").Range("A" & CStr(i + 1)).Interior.ColorIndex = Sheets(i).Tab.ColorIndex
         Sheets("Missing Items").Cells(1, i).Value = Sheets(i).Name
         Sheets("Missing Items").Cells(1, i).Interior.ColorIndex = Sheets(i).Tab.ColorIndex
+        Sheets("Date Difference").Cells(1, i + 1).Value = Sheets(i).Name
+        Sheets("Date Difference").Cells(1, i + 1).Interior.ColorIndex = Sheets(i).Tab.ColorIndex
         If Sheets(i).Tab.ColorIndex = 1 Then
             Sheets("Missing Items").Cells(1, i).Font.Color = RGB(255, 255, 255)
             Sheets("Summary").Range("A" & CStr(i + 1)).Font.Color = RGB(255, 255, 255)
+            Sheets("Date Difference").Cells(1, i + 1).Font.Color = RGB(255, 255, 255)
         End If
         
     Else
@@ -172,6 +294,7 @@ For i = 1 To counter
     End If
 Next i
 Sheets("Missing Items").Columns(template_row - 1).EntireColumn.Delete Shift:=xlToLeft
+Sheets("Date Difference").Columns(template_row).EntireColumn.Delete Shift:=xlToLeft
 '   Resize columns
 With Sheets("Summary")
     .Rows(template_row).Delete
@@ -184,6 +307,7 @@ With Sheets("Summary").Range("A1:AL1")
     .VerticalAlignment = xlTop
     .HorizontalAlignment = xlCenter
 End With
+'On Error Resume Next
 
 '   Iterate over worksheets (should be '2 to counter')
 For i = 2 To counter
@@ -211,13 +335,15 @@ For i = 2 To counter
             HeaderRows.Add j, "EduCertHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value = "Premed" Then
             HeaderRows.Add j, "PremedHeaderRow"
-        ElseIf Working.Range("A" & CStr(j)).Value = "  Medical School " Then
+        ElseIf Working.Range("A" & CStr(j)).Value Like "*Medical School*" _
+        And Working.Range("A" & CStr(j)).Interior.ColorIndex = 23 Then
             HeaderRows.Add j, "MedHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value Like "*Post Graduate Training*" Then
             HeaderRows.Add j, "PostGradHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value Like "*Exam Records*" Then
             HeaderRows.Add j, "ExamHeaderRow"
-        ElseIf Working.Range("A" & CStr(j)).Value Like "*Work History*" Then
+        ElseIf Working.Range("A" & CStr(j)).Value Like "Work History*" _
+        And Working.Range("A" & CStr(j)).Interior.ColorIndex <> 1 Then
             HeaderRows.Add j, "WorkHeaderRow"
         ElseIf Working.Range("A" & CStr(j)).Value Like "*Hospital Affiliations*" Then
             HeaderRows.Add j, "HospHeaderRow"
@@ -235,27 +361,77 @@ For i = 2 To counter
         End If
     Next j
     HeaderRows.Add (HeaderRows("PointAddPHeaderRow") + 4), "LastEmptyRow"
-'   Fill out missing row spreadsheet
-
-    MissingRow = MissingItems(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "CertHeaderRow", "VerifCertHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "VerifCertHeaderRow", "AddHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "AddHeaderRow", "EduCertHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "EduCertHeaderRow", "PremedHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "PremedHeaderRow", "MedHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "MedHeaderRow", "PostGradHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "PostGradHeaderRow", "ExamHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "ExamHeaderRow", "WorkHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "WorkHeaderRow", "HospHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "HospHeaderRow", "InsHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "InsHeaderRow", "ReportHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", MissingRow, i)
-    MissingRow = MissingItems(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", MissingRow, i)
     
+'   The missing item spreadsheet is filled out using the MissingItems function while
+'   the Date Difference spreadsheet uses the DateDiffCalc function (see above)
+    
+    MissingRow = MissingItems(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(2, i).Value = DateDiffCalc(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", i)
+    Sheets("Date Difference").Cells(2, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(3, i).Value = DateDiffCalc(HeaderRows, Working, "StateHeaderRow", "CertHeaderRow", i)
+    Sheets("Date Difference").Cells(3, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "CertHeaderRow", "VerifCertHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(4, i).Value = DateDiffCalc(HeaderRows, Working, "CertHeaderRow", "VerifCertHeaderRow", i)
+    Sheets("Date Difference").Cells(4, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "VerifCertHeaderRow", "AddHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(5, i).Value = DateDiffCalc(HeaderRows, Working, "VerifCertHeaderRow", "AddHeaderRow", i)
+    Sheets("Date Difference").Cells(5, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "AddHeaderRow", "EduCertHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(6, i).Value = DateDiffCalc(HeaderRows, Working, "AddHeaderRow", "EduCertHeaderRow", i)
+    Sheets("Date Difference").Cells(6, i).HorizontalAlignment = xlHAlignRight
+      
+    MissingRow = MissingItems(HeaderRows, Working, "EduCertHeaderRow", "PremedHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(7, i).Value = DateDiffCalc(HeaderRows, Working, "EduCertHeaderRow", "PremedHeaderRow", i)
+    Sheets("Date Difference").Cells(7, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "PremedHeaderRow", "MedHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(8, i).Value = DateDiffCalc(HeaderRows, Working, "PremedHeaderRow", "MedHeaderRow", i)
+    Sheets("Date Difference").Cells(8, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "MedHeaderRow", "PostGradHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(9, i).Value = DateDiffCalc(HeaderRows, Working, "MedHeaderRow", "PostGradHeaderRow", i)
+    Sheets("Date Difference").Cells(9, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "PostGradHeaderRow", "ExamHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(10, i).Value = DateDiffCalc(HeaderRows, Working, "PostGradHeaderRow", "ExamHeaderRow", i)
+    Sheets("Date Difference").Cells(10, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "ExamHeaderRow", "WorkHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(11, i).Value = DateDiffCalc(HeaderRows, Working, "ExamHeaderRow", "WorkHeaderRow", i)
+    Sheets("Date Difference").Cells(11, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "WorkHeaderRow", "HospHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(12, i).Value = DateDiffCalc(HeaderRows, Working, "WorkHeaderRow", "HospHeaderRow", i)
+    Sheets("Date Difference").Cells(12, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "HospHeaderRow", "InsHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(13, i).Value = DateDiffCalc(HeaderRows, Working, "HospHeaderRow", "InsHeaderRow", i)
+    Sheets("Date Difference").Cells(13, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "InsHeaderRow", "ReportHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(14, i).Value = DateDiffCalc(HeaderRows, Working, "InsHeaderRow", "ReportHeaderRow", i)
+    Sheets("Date Difference").Cells(14, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(15, i).Value = DateDiffCalc(HeaderRows, Working, "ReportHeaderRow", "MilHeaderRow", i)
+    Sheets("Date Difference").Cells(15, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(16, i).Value = DateDiffCalc(HeaderRows, Working, "MilHeaderRow", "RefHeaderRow", i)
+    Sheets("Date Difference").Cells(16, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", MissingRow, i)
+    Sheets("Date Difference").Cells(17, i).Value = DateDiffCalc(HeaderRows, Working, "RefHeaderRow", "PointAddPHeaderRow", i)
+    Sheets("Date Difference").Cells(17, i).HorizontalAlignment = xlHAlignRight
+    
+    MissingRow = MissingItems(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", MissingRow, i)
+    Sheets("Date Difference").Cells(18, i).Value = DateDiffCalc(HeaderRows, Working, "PointAddPHeaderRow", "LastEmptyRow", i)
+    Sheets("Date Difference").Cells(18, i).HorizontalAlignment = xlHAlignRight
     With Sheets("Summary")
 '   Legal: between "Legal Documents" and "State Licenses"
         .Range("B" & CStr(i)).Value = TypeCounter(HeaderRows, Working, "LegalHeaderRow", "StateHeaderRow", "B")
@@ -371,5 +547,9 @@ With ActiveWindow
     .SplitRow = 0
 End With
 ActiveWindow.FreezePanes = True
+
+Application.Calculation = xlCalculationAutomatic
+Application.ScreenUpdating = True
+Application.DisplayStatusBar = True
 
 End Sub
