@@ -7,7 +7,7 @@ import time, sys, os, calendar, openpyxl as oxl
 import selenium
 
 ## Getting Data
-def download_speadsheet():
+def strip_rad_reference():
     # get rads IDs (from excel)
     refer = oxl.load_workbook('rad_reference.xlsx')
     sheet = refer.get_sheet_by_name('Sheet1')
@@ -21,7 +21,9 @@ def download_speadsheet():
             ID_nums.append(str(sheet['B{0}'.format(j)].value))
             leave_date.append(sheet['A{0}'.format(j)].value)
         j += 1
+    return ID_nums, leave_date
 
+def get_output(ID_nums):
     # navigate to the rad priv report
     fp = webdriver.FirefoxProfile()
     fp.set_preference("browser.download.folderList",2)
@@ -31,7 +33,7 @@ def download_speadsheet():
                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     fp.set_preference("browser.download.manager.showAlertOnComplete",False)
     driver = webdriver.Firefox(fp)
-    driver.get('http://jacob.scherber:IneedOne2@vradhome/Privileging/Reports')
+    driver.get('http://jacob.scherber:IneedOne3@vradhome/Privileging/Reports')
     drop_down = driver.find_element_by_id('reportSelect')
     drop_down.click()
     for i in range(4):
@@ -45,7 +47,7 @@ def download_speadsheet():
     ActionChains(driver).move_to_element(open_stat).click(
         ).send_keys('init').send_keys(Keys.RETURN).perform()
 
-    # enter rad names (need to build try-except for rads removed)
+    # enter rad names (try-except for rads removed still buggy...)
     rads_in = driver.find_element_by_id('s2id_autogen1')
 
     for i in range(len(ID_nums)):
@@ -69,13 +71,14 @@ def download_speadsheet():
     driver.find_element_by_class_name('headerButton').click()
     time.sleep(7)
     driver.quit()
-def input_information():
+    
+def get_positives(ID_nums, leave_date, remove=True):
     ## Comparing Data
-    test_wb = oxl.load_workbook('output.xlsx')
-    os.remove('output.xlsx')
-    test = test_wb.get_sheet_by_name('Worklist')
+    output_wb = oxl.load_workbook('output.xlsx')
+    if remove == True:
+        os.remove('output.xlsx')
+    test = output_wb.get_sheet_by_name('Worklist')
     t_length = 1
-
     # get workbook length
     while True:
         if test['A{0}'.format(t_length)].value == None:
@@ -95,8 +98,8 @@ def input_information():
                                         test['S{0}'.format(row)].value, '%m/%d/%Y')
         for rad in range(len(ID_nums)):
             if (ID_nums[rad] == str(test['A{0}'.format(row)].value) and
-            leave_date[rad] < (test['S{0}'.format(row)].value +
-                                    relativedelta(months=+1)) and
+            leave_date[rad] < (
+                test['S{0}'.format(row)].value + relativedelta(months=+1)) and
             test['J{0}'.format(row)].value in ['REAP-RC','REAP-ELEC','REAP-ORIG',
                                                'INP', 'INP-QA', 'INP-QA',
                                                'ORIG-SIG','ELEC-SIG', 'REAP-INP',
@@ -108,31 +111,38 @@ def input_information():
                 date_reform = leave_date[rad].strftime('%m/%d/%Y')
                 positives.append([date_reform,
                                   test['B{0}'.format(row)].value,
-                                  test['E{0}'.format(row)].value])
+                                  (test['E{0}'.format(row)].value] + ' ' + test['F{0}'.format(row)].value))
+    return positives
+
+
+def input_information(positives):
     driver = webdriver.Chrome()
-    time.sleep(1)
-    driver.maximize_window() 
+    driver.maximize_window()
     driver.get('http://vradhome/Privileging/Facility?facility')
+    time.sleep(2)
     for k in range(len(positives)):
         fac_search = driver.find_element_by_id('s2id_autogen1')
         actions = ActionChains(driver)
         actions.move_to_element(fac_search)
         actions.click()
+
+        # need to add a space + state initials after site names to ensure correct
+        # site is selected (e.g. St Francis Medical Center)
+
         actions.send_keys(positives[k][2]).perform()
         time.sleep(1.5)
         actions = ActionChains(driver)
         actions.send_keys(Keys.RETURN).perform()
-        time.sleep(7)
+        time.sleep(10)
         try:
-            name_spot = driver.find_element_by_xpath("//*[contains(text(), '{0}')]".format(
-                positives[k][1]))
+            name_spot = driver.find_element_by_xpath(
+                "//*[contains(text(), '{0}')]".format(positives[k][1]))
             actions = ActionChains(driver)
             actions.move_to_element(name_spot)
             actions.click()
             actions.perform()
             expand = driver.find_elements_by_class_name("expand")[2].click()
             tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime('%m/%d/%y')
-
             next_act = driver.find_elements_by_class_name("form-control")[0]
             comment = driver.find_elements_by_class_name("form-control")[9]
             actions = ActionChains(driver)
@@ -145,26 +155,21 @@ def input_information():
                 ' Roberta with questions.'.format(positives[k][0])
                 ).perform()
             driver.find_element_by_xpath('//*[@title="Submit Mass Update"]').click()
-        except selenium.common.exceptions.NoSuchElementException:
-                print("unable to bing {0}".format(positives[k][1]))
-        continue
-          
-        print('See Note (Rad Leaving)\n{0} : {1} \nRad last read date on: {2}.'
+            print('See Note (Rad Leaving)\n{0} : {1} \nRad last read date on: {2}.'
               ' Please stop app process and update status to WD.'
               ' Please contact Roberta with questions.\n'.format(
                   positives[k][1],positives[k][2],positives[k][0]))
+            
+        except selenium.common.exceptions.NoSuchElementException:
+                print("unable to find {0}".format(positives[k][1]))
+        continue
+          
+        
         time.sleep(3)
     driver.quit()
-    
-download_spreadsheet()
-input_information()
-# ID = A
-# Name = B
-# Facility = E
-# Status = J
-# Next Action Note = M
-# Expiration Date = S
 
-
-
+ID_nums, leave_date = strip_rad_reference()    
+get_output(ID_nums)
+positives = get_positives(ID_nums, leave_date, remove=False)
+input_information(positives)
 
