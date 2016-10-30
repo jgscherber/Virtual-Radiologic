@@ -65,7 +65,7 @@ def get_output(ID_nums):
                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     fp.set_preference("browser.download.manager.showAlertOnComplete",False)
     driver = webdriver.Firefox(fp)
-    driver.get('http://jacob.scherber:IneedOne3@vradhome/Privileging/Reports')
+    driver.get('http://user.name:password@vradhome/Privileging/Reports')
     drop_down = driver.find_element_by_id('reportSelect')
     drop_down.click()
     for i in range(4):
